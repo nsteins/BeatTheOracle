@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style>
+.wrapper {
+    text-align: center;
+}
+.button {
+    background-color: #555555;
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 26px;
+    margin: 4px 2px;
+    cursor: pointer;
+    position: absolute;
+}
+</style>
+</head>
+<body onload="startGame()" style="background-color:black">
+
+<h1 align="center" style="color:white;font-family:Helvetica;font-size:300%;">Beat the Oracle</h1>
+
+<div id="canvDiv" style="text-align:center;">
+  <canvas id="canvas">This is canvas</canvas>
+ 
+</div>
+
+<script>
+
+var vans = [];
+var oracles = []
+var myObstacles = [];
+var scoreBoard;
+var mySound;
+
+var repairCost = 50;
+
+var w_pad = 10;
+var h_pad = 80;
+var max_height = 160;
+var N = 3;
+var w = 320;    
+    
+var width = (w+2*w_pad)*N;
+var height = 600
+
+
+function startGame() {
+    vans = [];
+    oracles = []
+    myObstacles = [];
+    
+    for(var i = 0; i < N; i++ ){
+        vans.push(new vanComponent(w-w_pad, 0, '#AAD5E9', w*i, max_height+h_pad, Math.random()*2+0.5, max_height));
+    }
+    scoreBoard = new scoreComponent("30px", "Helvetica", "white", w_pad, 40, "Your Cost: $");
+    for(var i = 0; i < N; i++ ){
+        oracles.push(new vanComponent(w-w_pad, 0, '#AAD5E9', w*i, 2*max_height+2*h_pad, Math.random()*2+0.5, max_height));
+    }
+    oraclescoreBoard = new scoreComponent("30px", "Helvetica", "white", w_pad, max_height+140, "Oracle Cost: $");
+    mySound = new sound("oneweek.m4a");
+    myGameArea.load();
+    updateGameArea();
+}
+
+function restartGame(){
+    mySound.stop();
+    startGame();
+    myGameArea.start();
+    mySound.play();
+}
+
+var myGameArea = {
+    canvas : document.getElementById("canvas"),
+    load : function() {
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.canvas.color = '#FFFFFF'
+        this.context = this.canvas.getContext("2d");
+        //document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
+    },
+    start: function() {
+        clearInterval(this.interval)
+        this.interval = setInterval(updateGameArea, 20);
+    },
+    stop : function() {
+        clearInterval(this.interval);
+        ctx = this.context;
+        ctx.font = "60px" + " " + "Helvetica";
+        ctx.fillStyle = 'white';
+        ctx.fillText("GAME OVER", 300, 50);
+        
+    },    
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        var ctx = myGameArea.canvas.getContext("2d");
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, myGameArea.canvas.width, myGameArea.canvas.height);
+    }
+}
+
+
+
+
+function scoreComponent(width, height, color, x, y, t){
+    this.width = width;
+    this.height = height;
+    this.color = color
+    this.x = x;
+    this.y = y;
+    this.score = 0
+    this.t = t
+    this.update = function() {
+      this.text = t + this.score;
+      ctx = myGameArea.context;
+      ctx.font = this.width + " " + this.height;
+      ctx.fillStyle = color;
+      ctx.fillText(this.text, this.x, this.y);
+    }
+  }
+
+function vanComponent(width, height, color, x, y, rate, maxheight) {
+    this.width = width;
+    this.height = height;
+    this.color = color
+    this.rate = rate;
+    this.maxheight = maxheight-13
+    this.x = x;
+    this.y = y;
+    var img = document.getElementById("van");
+    
+
+    this.update = function() {
+      if(this.height < this.maxheight){
+        this.height += this.rate;
+      }
+      else{
+          this.color = '#EB947A';
+          scoreBoard.score += 5
+      }
+      ctx = myGameArea.context;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(this.x, this.y, this.width, -max_height);
+      ctx.fillStyle = this.color;
+      ctx.fillRect(this.x, this.y, this.width, -this.height);
+      ctx.drawImage(img, this.x, this.y-max_height, this.width, max_height);
+    }
+    this.reset = function() {
+        this.height=0;
+        this.rate = Math.random()*2+0.5;
+        this.color = '#AAD5E9';
+    }
+}
+
+function updateGameArea() {
+    myGameArea.clear();
+    scoreBoard.update();
+    oraclescoreBoard.update();
+    
+    if(scoreBoard.score>=3000){
+        myGameArea.stop()
+    }
+    
+    for (i = 0; i < vans.length; i += 1) {
+        vans[i].update();
+    }
+    for (i = 0; i < oracles.length; i += 1) {
+        oracles[i].update();
+        if(oracles[i].height >= oracles[i].maxheight){
+          oraclescoreBoard.score += repairCost;
+          oracles[i].reset();
+        }
+    }
+}
+
+var canvas = document.getElementById("canvas"),
+    canvLeft = canvas.width - canvas.offsetLeft + canvas.parentNode.offsetLeft,
+    canvTop = canvas.parentNode.offsetTop,
+    context = canvas.getContext('2d')
+
+// Add event listener for `click` events.
+myGameArea.canvas.addEventListener('click', function(event) {
+    var x = event.pageX + canvLeft,
+        y = event.pageY - canvTop;
+    //alert(canvLeft+" "+canvTop+" "+x+" "+y)
+    // Collision detection between clicked offset and element.
+    vans.forEach(function(v) {
+        if (y > v.y-v.height && y < v.y 
+            && x > v.x && x < v.x + v.width) {
+            scoreBoard.score += repairCost
+            v.reset();
+        }
+    });
+
+}, false);
+
+function sound(src) {
+    this.sound = document.createElement("audio");
+    this.sound.src = src;
+    this.sound.setAttribute("preload", "auto");
+    this.sound.setAttribute("controls", "none");
+    this.sound.style.display = "none";
+    document.body.appendChild(this.sound);
+    this.play = function(){
+        this.sound.play();
+    }
+    this.stop = function(){
+        this.sound.pause();
+    }
+}
+
+</script>
+<div class="wrapper">
+    <button class="button" onclick="restartGame()">Start!</button>
+</div>
+
+<img id="van" src="https://i.imgur.com/GjDeZse.png" style="display: none;">
+
+</body>
+</html>
